@@ -3,9 +3,8 @@ import { SafeAreaView, View, Text, TextInput, TouchableOpacity, FlatList, StyleS
 
 export default function App() {
   const [messages, setMessages] = useState([
-    { id: '1', text: 'Hello! ', sender: 'other' },
-    { id: '2', text: 'Hi! How are you', sender: 'me' },
-     { id: '1', text: 'Im okay love! ', sender: 'other' },
+    { id: '1', text: 'Lab Pa22ya ko Lovee! ', sender: 'other' },
+    { id: '2', text: 'Dali lovee 22y', sender: 'me' },
   ]);
   const [input, setInput] = useState('');
 
