@@ -9,11 +9,35 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function App() {
   // Tabs
   const [activeTab, setActiveTab] = useState('chat');
+
+  // Profile Picture
+  const [profilePic, setProfilePic] = useState(null);
+
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      alert('Permission to access gallery is required!');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setProfilePic(result.assets[0].uri);
+    }
+  };
 
   // Chat State
   const [messages, setMessages] = useState([
@@ -24,15 +48,22 @@ export default function App() {
   const [input, setInput] = useState('');
   const chatListRef = useRef(null);
 
-  // Comments State
+  // Comments State + Like System
   const [comments, setComments] = useState([
     { id: '1', text: 'Gwapuha nimu doy oy!' },
     { id: '2', text: 'Bitaw kagwapo bataa.' },
-    { id: '3', text: 'Paliwata ko bee!' },
   ]);
   const [newComment, setNewComment] = useState('');
   const [replyTo, setReplyTo] = useState(null);
+  const [likes, setLikes] = useState(0);
+  const [liked, setLiked] = useState(false);
   const commentListRef = useRef(null);
+
+  // Toggle Like
+  const toggleLike = () => {
+    setLiked(!liked);
+    setLikes(liked ? likes - 1 : likes + 1);
+  };
 
   // Send Chat Message
   const sendMessage = () => {
@@ -75,11 +106,28 @@ export default function App() {
   const renderMessage = ({ item }) => (
     <View
       style={[
-        styles.message,
-        item.sender === 'me' ? styles.myMessage : styles.otherMessage,
+        styles.messageRow,
+        item.sender === 'me' ? styles.myRow : styles.otherRow,
       ]}
     >
-      <Text style={styles.messageText}>{item.text}</Text>
+      {item.sender !== 'me' && (
+        <Image
+          source={
+            profilePic
+              ? { uri: profilePic }
+              : require('../assets/Screenshot 2025-11-13 165401.png')
+          }
+          style={styles.chatAvatar}
+        />
+      )}
+      <View
+        style={[
+          styles.message,
+          item.sender === 'me' ? styles.myMessage : styles.otherMessage,
+        ]}
+      >
+        <Text style={styles.messageText}>{item.text}</Text>
+      </View>
     </View>
   );
 
@@ -98,13 +146,27 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* KeyboardAvoidingView ensures inputs are visible above the keyboard */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={80} // adjust if needed
+        keyboardVerticalOffset={80}
       >
-        {/* Top Navigation */}
+        {/* Top Section with Editable Profile */}
+        <View style={styles.profileContainer}>
+          <TouchableOpacity onPress={pickImage}>
+            <Image
+              source={
+                profilePic
+                  ? { uri: profilePic }
+                  : require('../assets/Screenshot 2025-11-13 165401.png')
+              }
+              style={styles.profileImage}
+            />
+          </TouchableOpacity>
+          <Text style={styles.profileName}>Ray Christian</Text>
+        </View>
+
+        {/* Tabs */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'chat' && styles.activeTab]}
@@ -116,7 +178,7 @@ export default function App() {
             style={[styles.tab, activeTab === 'comments' && styles.activeTab]}
             onPress={() => setActiveTab('comments')}
           >
-            <Text style={styles.tabText}>Comments</Text>
+            <Text style={styles.tabText}>Post</Text>
           </TouchableOpacity>
         </View>
 
@@ -144,9 +206,25 @@ export default function App() {
           </View>
         )}
 
-        {/* Comments Section */}
+        {/* Post (Like + Comments Section) */}
         {activeTab === 'comments' && (
           <View style={{ flex: 1 }}>
+            {/* Fake Facebook-like post */}
+            <View style={styles.postContainer}>
+              <Image
+                source={require('../assets/Screenshot 2025-11-13 165401.png')}
+                style={styles.postImage}
+              />
+              <View style={styles.likeContainer}>
+                <TouchableOpacity onPress={toggleLike}>
+                  <Text style={[styles.likeText, liked && styles.liked]}>
+                    {liked ? '❤️ Liked' : '🤍 Like'}
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.likeCount}>{likes} Likes</Text>
+              </View>
+            </View>
+
             <FlatList
               ref={commentListRef}
               data={comments}
@@ -154,6 +232,7 @@ export default function App() {
               renderItem={renderComment}
               style={styles.flatList}
             />
+
             {replyTo && (
               <View style={styles.replyBox}>
                 <Text style={styles.replyingText}>Replying to: {replyTo}</Text>
@@ -162,6 +241,7 @@ export default function App() {
                 </TouchableOpacity>
               </View>
             )}
+
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
@@ -184,6 +264,20 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
+  profileContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  profileImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 6,
+  },
   tabContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -199,10 +293,14 @@ const styles = StyleSheet.create({
   activeTab: { borderColor: '#007AFF' },
   tabText: { fontSize: 18, fontWeight: '600' },
   flatList: { flex: 1, paddingHorizontal: 10 },
+  messageRow: { flexDirection: 'row', alignItems: 'flex-end', marginVertical: 4 },
+  myRow: { justifyContent: 'flex-end' },
+  otherRow: { justifyContent: 'flex-start' },
+  chatAvatar: { width: 32, height: 32, borderRadius: 16, marginRight: 8 },
   message: {
     padding: 10,
     borderRadius: 10,
-    marginVertical: 5,
+    marginVertical: 2,
     maxWidth: '70%',
   },
   myMessage: {
@@ -259,4 +357,21 @@ const styles = StyleSheet.create({
   },
   replyingText: { fontSize: 14, color: '#333' },
   cancelReply: { fontSize: 14, color: 'red', marginLeft: 10 },
+  postContainer: {
+    backgroundColor: '#fff',
+    margin: 10,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  postImage: { width: '100%', height: 200 },
+  likeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 10,
+  },
+  likeText: { fontSize: 16, color: '#555' },
+  liked: { color: 'red', fontWeight: 'bold' },
+  likeCount: { fontSize: 16, color: '#333' },
 });
