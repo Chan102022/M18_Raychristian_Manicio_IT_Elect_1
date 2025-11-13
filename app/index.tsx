@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 
 export default function App() {
@@ -22,7 +24,7 @@ export default function App() {
   const [input, setInput] = useState('');
   const chatListRef = useRef(null);
 
-  // Comments State (with samples)
+  // Comments State
   const [comments, setComments] = useState([
     { id: '1', text: 'Gwapuha nimu doy oy!' },
     { id: '2', text: 'Bitaw kagwapo bataa.' },
@@ -96,79 +98,86 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Navigation */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'chat' && styles.activeTab]}
-          onPress={() => setActiveTab('chat')}
-        >
-          <Text style={styles.tabText}>Chat</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'comments' && styles.activeTab]}
-          onPress={() => setActiveTab('comments')}
-        >
-          <Text style={styles.tabText}>Comments</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Show Chat Section */}
-      {activeTab === 'chat' && (
-        <View style={{ flex: 1 }}>
-          <FlatList
-            ref={chatListRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            renderItem={renderMessage}
-            style={styles.flatList}
-          />
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Type a message..."
-              value={input}
-              onChangeText={setInput}
-            />
-            <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-              <Text style={styles.sendText}>Send</Text>
-            </TouchableOpacity>
-          </View>
+      {/* KeyboardAvoidingView ensures inputs are visible above the keyboard */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={80} // adjust if needed
+      >
+        {/* Top Navigation */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'chat' && styles.activeTab]}
+            onPress={() => setActiveTab('chat')}
+          >
+            <Text style={styles.tabText}>Chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'comments' && styles.activeTab]}
+            onPress={() => setActiveTab('comments')}
+          >
+            <Text style={styles.tabText}>Comments</Text>
+          </TouchableOpacity>
         </View>
-      )}
 
-      {/* Show Comment Section */}
-      {activeTab === 'comments' && (
-        <View style={{ flex: 1 }}>
-          <FlatList
-            ref={commentListRef}
-            data={comments}
-            keyExtractor={(item) => item.id}
-            renderItem={renderComment}
-            style={styles.flatList}
-          />
-          {replyTo && (
-            <View style={styles.replyBox}>
-              <Text style={styles.replyingText}>Replying to: {replyTo}</Text>
-              <TouchableOpacity onPress={() => setReplyTo(null)}>
-                <Text style={styles.cancelReply}>✖ Cancel</Text>
+        {/* Chat Section */}
+        {activeTab === 'chat' && (
+          <View style={{ flex: 1 }}>
+            <FlatList
+              ref={chatListRef}
+              data={messages}
+              keyExtractor={(item) => item.id}
+              renderItem={renderMessage}
+              style={styles.flatList}
+            />
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Type a message..."
+                value={input}
+                onChangeText={setInput}
+              />
+              <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+                <Text style={styles.sendText}>Send</Text>
               </TouchableOpacity>
             </View>
-          )}
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Add a comment..."
-              value={newComment}
-              onChangeText={setNewComment}
-            />
-            <TouchableOpacity style={styles.sendButton} onPress={addComment}>
-              <Text style={styles.sendText}>
-                {replyTo ? 'Reply' : 'Post'}
-              </Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      )}
+        )}
+
+        {/* Comments Section */}
+        {activeTab === 'comments' && (
+          <View style={{ flex: 1 }}>
+            <FlatList
+              ref={commentListRef}
+              data={comments}
+              keyExtractor={(item) => item.id}
+              renderItem={renderComment}
+              style={styles.flatList}
+            />
+            {replyTo && (
+              <View style={styles.replyBox}>
+                <Text style={styles.replyingText}>Replying to: {replyTo}</Text>
+                <TouchableOpacity onPress={() => setReplyTo(null)}>
+                  <Text style={styles.cancelReply}>✖ Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Add a comment..."
+                value={newComment}
+                onChangeText={setNewComment}
+              />
+              <TouchableOpacity style={styles.sendButton} onPress={addComment}>
+                <Text style={styles.sendText}>
+                  {replyTo ? 'Reply' : 'Post'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
