@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -26,23 +28,59 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [profileImage, setProfileImage] = useState(null);
 
   const passwordStrength = password ? getPasswordStrength(password) : null;
   const passwordsMatch = password && confirmPassword && password === confirmPassword;
 
+  // === PICK PROFILE PHOTO ===
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission Needed', 'Please allow photo access.');
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setProfileImage(base64Image);
+    }
+  };
+
+  // === REGISTER ===
   const handleRegister = async () => {
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
+    if (!profileImage) {
+      Alert.alert('Error', 'Please select a profile photo');
+      return;
+    }
+
     setIsLoading(true);
-    const result = await register(email.trim(), password, confirmPassword);
+
+    // Pass the image to register()
+    const result = await register(email.trim(), password, confirmPassword, profileImage);
+
     setIsLoading(false);
 
     if (!result.success) {
       Alert.alert('Registration Failed', result.error);
+      return;
     }
+
+    Alert.alert('Success', 'Account created!');
+    router.push('/login');
   };
 
   return (
@@ -50,20 +88,36 @@ export default function Register() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
+
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>Sign up to get started</Text>
           </View>
 
+          {/* ===== PROFILE PHOTO PICKER ===== */}
+          <View style={{ alignItems: 'center', marginBottom: 25 }}>
+            <TouchableOpacity onPress={pickImage}>
+              {profileImage ? (
+                <Image
+                  source={{ uri: profileImage }}
+                  style={styles.profileImage}
+                />
+              ) : (
+                <View style={styles.profilePlaceholder}>
+                  <Ionicons name="camera" size={40} color="#FFA500" />
+                  <Text style={{ color: '#FFA500', marginTop: 5 }}>Add Photo</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
           {/* Form */}
           <View style={styles.form}>
-            {/* Email Input */}
+
+            {/* Email */}
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
               <TextInput
@@ -78,7 +132,7 @@ export default function Register() {
               />
             </View>
 
-            {/* Password Input */}
+            {/* Password */}
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
               <TextInput
@@ -103,7 +157,7 @@ export default function Register() {
               </TouchableOpacity>
             </View>
 
-            {/* Password Strength Indicator */}
+            {/* Password Strength */}
             {password.length > 0 && passwordStrength && (
               <View style={styles.strengthContainer}>
                 <View style={styles.strengthBar}>
@@ -111,10 +165,14 @@ export default function Register() {
                     style={[
                       styles.strengthFill,
                       {
-                        width: passwordStrength.level === 'weak' ? '33%' :
-                               passwordStrength.level === 'medium' ? '66%' : '100%',
-                        backgroundColor: passwordStrength.color
-                      }
+                        width:
+                          passwordStrength.level === 'weak'
+                            ? '33%'
+                            : passwordStrength.level === 'medium'
+                            ? '66%'
+                            : '100%',
+                        backgroundColor: passwordStrength.color,
+                      },
                     ]}
                   />
                 </View>
@@ -124,7 +182,7 @@ export default function Register() {
               </View>
             )}
 
-            {/* Confirm Password Input */}
+            {/* Confirm Password */}
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
               <TextInput
@@ -149,7 +207,7 @@ export default function Register() {
               </TouchableOpacity>
             </View>
 
-            {/* Password Match Indicator */}
+            {/* Password Match */}
             {confirmPassword.length > 0 && (
               <View style={styles.matchContainer}>
                 <Ionicons
@@ -157,13 +215,18 @@ export default function Register() {
                   size={16}
                   color={passwordsMatch ? '#00cc44' : '#ff4444'}
                 />
-                <Text style={[styles.matchText, { color: passwordsMatch ? '#00cc44' : '#ff4444' }]}>
+                <Text
+                  style={[
+                    styles.matchText,
+                    { color: passwordsMatch ? '#00cc44' : '#ff4444' },
+                  ]}
+                >
                   {passwordsMatch ? 'Passwords match' : 'Passwords do not match'}
                 </Text>
               </View>
             )}
 
-            {/* Password Requirements */}
+            {/* Requirements */}
             <View style={styles.requirementsContainer}>
               <Text style={styles.requirementsTitle}>Password must contain:</Text>
               <Text style={styles.requirementText}>• At least 8 characters</Text>
@@ -179,7 +242,7 @@ export default function Register() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color="#000" />
               ) : (
                 <Text style={styles.buttonText}>Sign Up</Text>
               )}
@@ -192,16 +255,18 @@ export default function Register() {
                 <Text style={styles.linkText}>Login</Text>
               </TouchableOpacity>
             </View>
+
           </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000', // black background
+    backgroundColor: '#000',
   },
   scrollContent: {
     flexGrow: 1,
@@ -219,20 +284,39 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#fff', // white title
+    color: '#fff',
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: '#FFA500', // orange subtitle
+    color: '#FFA500',
   },
+
+  /* Profile Photo */
+  profileImage: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    borderWidth: 3,
+    borderColor: '#FFA500',
+  },
+  profilePlaceholder: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    borderWidth: 3,
+    borderColor: '#FFA500',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
   form: {
     width: '100%',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a', // dark gray input
+    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     marginBottom: 16,
     paddingHorizontal: 15,
@@ -241,17 +325,19 @@ const styles = StyleSheet.create({
   },
   inputIcon: {
     marginRight: 10,
-    color: '#FFA500', // orange icon
+    color: '#FFA500',
   },
   input: {
     flex: 1,
-    color: '#fff', // white text
+    color: '#fff',
     fontSize: 16,
     paddingVertical: 15,
   },
   eyeIcon: {
     padding: 5,
   },
+
+  /* Strength */
   strengthContainer: {
     marginBottom: 16,
   },
@@ -270,6 +356,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+
+  /* Password Match */
   matchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -279,8 +367,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 5,
   },
+
+  /* Requirements */
   requirementsContainer: {
-    backgroundColor: '#1a1a1a', // dark gray
+    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 15,
     marginBottom: 20,
@@ -288,18 +378,20 @@ const styles = StyleSheet.create({
     borderColor: '#333',
   },
   requirementsTitle: {
-    color: '#fff', // white
+    color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   requirementText: {
-    color: '#888', // light gray
+    color: '#888',
     fontSize: 13,
     marginBottom: 4,
   },
+
+  /* Button */
   button: {
-    backgroundColor: '#FFA500', // orange button
+    backgroundColor: '#FFA500',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -309,21 +401,22 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#000', // black text on orange button
+    color: '#000',
     fontSize: 18,
     fontWeight: 'bold',
   },
+
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 30,
   },
   footerText: {
-    color: '#ccc', // light gray
+    color: '#ccc',
     fontSize: 14,
   },
   linkText: {
-    color: '#FFA500', // orange link
+    color: '#FFA500',
     fontSize: 14,
     fontWeight: 'bold',
   },

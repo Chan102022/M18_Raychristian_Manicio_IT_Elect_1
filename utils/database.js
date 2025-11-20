@@ -7,13 +7,14 @@ export const initDatabase = async () => {
   try {
     db = await SQLite.openDatabaseAsync('auth.db');
 
-    // Create users table
+    // Create users table (UPDATED: added profile_image TEXT)
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         role TEXT DEFAULT 'user',
+        profile_image TEXT,
         resetToken TEXT,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       );
@@ -40,7 +41,7 @@ export const initDatabase = async () => {
   }
 };
 
-// Get database instance
+// Database instance
 export const getDatabase = () => {
   if (!db) {
     throw new Error('Database not initialized. Call initDatabase first.');
@@ -48,13 +49,13 @@ export const getDatabase = () => {
   return db;
 };
 
-// Create new user
-export const createUser = async (email, hashedPassword) => {
+// Create new user (UPDATED: added profile_image)
+export const createUser = async (email, hashedPassword, profileImage) => {
   try {
     const db = getDatabase();
     const result = await db.runAsync(
-      'INSERT INTO users (email, password, role) VALUES (?, ?, ?)',
-      [email.toLowerCase(), hashedPassword, 'user']
+      'INSERT INTO users (email, password, role, profile_image) VALUES (?, ?, ?, ?)',
+      [email.toLowerCase(), hashedPassword, 'user', profileImage]
     );
     return result;
   } catch (error) {
@@ -65,7 +66,7 @@ export const createUser = async (email, hashedPassword) => {
   }
 };
 
-// Get user by email
+// Get user by email (UPDATED: returns profile_image)
 export const getUserByEmail = async (email) => {
   try {
     const db = getDatabase();
@@ -80,7 +81,7 @@ export const getUserByEmail = async (email) => {
   }
 };
 
-// Update user password
+// Update password
 export const updateUserPassword = async (email, newHashedPassword) => {
   try {
     const db = getDatabase();
@@ -140,11 +141,13 @@ export const clearResetToken = async (email) => {
   }
 };
 
-// Get all users (for debugging)
+// Debug: Get all users (UPDATED: includes profile_image)
 export const getAllUsers = async () => {
   try {
     const db = getDatabase();
-    const users = await db.getAllAsync('SELECT id, email, role, createdAt FROM users');
+    const users = await db.getAllAsync(
+      'SELECT id, email, role, profile_image, createdAt FROM users'
+    );
     return users;
   } catch (error) {
     console.error('Error getting all users:', error);
@@ -152,12 +155,12 @@ export const getAllUsers = async () => {
   }
 };
 
-// Get all users excluding a specific user ID
+// Get all users excluding (UPDATED: includes profile_image)
 export const getAllUsersExcluding = async (excludeId) => {
   try {
     const db = getDatabase();
     const users = await db.getAllAsync(
-      'SELECT id, email FROM users WHERE id != ?',
+      'SELECT id, email, profile_image FROM users WHERE id != ?',
       [excludeId]
     );
     return users;
@@ -167,7 +170,7 @@ export const getAllUsersExcluding = async (excludeId) => {
   }
 };
 
-// Insert a new message
+// Insert message
 export const insertMessage = async (senderId, receiverId, message) => {
   try {
     const db = getDatabase();
@@ -192,7 +195,8 @@ export const getMessagesBetween = async (userId1, userId2) => {
        FROM messages m
        JOIN users u1 ON m.sender_id = u1.id
        JOIN users u2 ON m.receiver_id = u2.id
-       WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
+       WHERE (m.sender_id = ? AND m.receiver_id = ?) 
+          OR (m.sender_id = ? AND m.receiver_id = ?)
        ORDER BY m.timestamp ASC`,
       [userId1, userId2, userId2, userId1]
     );

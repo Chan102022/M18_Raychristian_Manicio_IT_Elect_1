@@ -1,26 +1,29 @@
-import { Stack, Tabs, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 
-function RootLayoutNav() {
+function RootNavigation() {
   const { isAuthenticated, isLoading } = useAuth();
-  const segments = useSegments();
+  const segments = useSegments(); // ex: ["login"], ["(tabs)", "index"]
   const router = useRouter();
 
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthScreen = segments[0] === 'login' || segments[0] === 'register' || segments[0] === 'forgot-password';
+    const current = segments[0]; // first segment
 
-    if (!isAuthenticated && !inAuthScreen) {
-      // Redirect to login if not authenticated and not in auth screens
-      router.replace('/login');
-    } else if (isAuthenticated && inAuthScreen) {
-      // Redirect to home if authenticated and trying to access auth screens
-      router.replace('/');
+    const isAuthScreen =
+      current === "login" ||
+      current === "register" ||
+      current === "forgot-password";
+
+    if (!isAuthenticated && !isAuthScreen) {
+      router.replace("/login");
+    } else if (isAuthenticated && isAuthScreen) {
+      router.replace("/(tabs)/");
     }
-  }, [isAuthenticated, isLoading, segments]);
+  }, [segments, isAuthenticated, isLoading]);
 
   if (isLoading) {
     return (
@@ -30,76 +33,20 @@ function RootLayoutNav() {
     );
   }
 
-  if (!isAuthenticated) {
-    // Show auth screens
-    return (
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="login" />
-        <Stack.Screen name="register" />
-        <Stack.Screen name="forgot-password" />
-      </Stack>
-    );
-  }
-
-  // Show main app tabs
   return (
-    <Tabs
-      screenOptions={{
-        tabBarStyle: {
-          backgroundColor: '#1e1e1e',
-          borderTopColor: '#333',
-        },
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#888',
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen
-        name="messenger"
-        options={{
-          title: 'Messenger',
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen
-        name="comments"
-        options={{
-          title: 'Comments',
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen
-        name="login"
-        options={{
-          href: null, // Hide from tabs
-        }}
-      />
-      <Tabs.Screen
-        name="register"
-        options={{
-          href: null, // Hide from tabs
-        }}
-      />
-      <Tabs.Screen
-        name="forgot-password"
-        options={{
-          href: null, // Hide from tabs
-        }}
-      />
-    </Tabs>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="login" />
+      <Stack.Screen name="register" />
+      <Stack.Screen name="forgot-password" />
+      <Stack.Screen name="(tabs)" /> {/* Tab navigator */}
+    </Stack>
   );
 }
 
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <RootNavigation />
     </AuthProvider>
   );
 }
@@ -107,10 +54,8 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#121212',
+    backgroundColor: "#121212",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
-
-//this is the App.js alternative for expo-router on my Midterm Activity 1

@@ -18,15 +18,13 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDbInitialized, setIsDbInitialized] = useState(false);
 
-  // Initialize database and check for existing session
+  // Initialize database and check session
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Initialize database
         await initDatabase();
         setIsDbInitialized(true);
 
-        // Check for existing session
         const savedUser = await AsyncStorage.getItem('user');
         if (savedUser) {
           setUser(JSON.parse(savedUser));
@@ -37,41 +35,33 @@ export const AuthProvider = ({ children }) => {
         setIsLoading(false);
       }
     };
-
     initialize();
   }, []);
 
-  // Register new user
-  const register = async (email, password, confirmPassword) => {
+  // REGISTER — now supports profileImage
+  const register = async (email, password, confirmPassword, profileImage) => {
     try {
-      // Validate email
-      if (!validateEmail(email)) {
-        throw new Error('Please enter a valid email address');
-      }
+      // Validation
+      if (!validateEmail(email)) throw new Error('Please enter a valid email address');
 
-      // Validate password
       const passwordValidation = validatePassword(password);
-      if (!passwordValidation.isValid) {
-        throw new Error(passwordValidation.errors[0]);
-      }
+      if (!passwordValidation.isValid) throw new Error(passwordValidation.errors[0]);
 
-      // Check if passwords match
-      if (password !== confirmPassword) {
-        throw new Error('Passwords do not match');
-      }
+      if (password !== confirmPassword) throw new Error('Passwords do not match');
 
       // Hash password
       const hashedPassword = await hashPassword(password);
 
-      // Create user in database
-      await createUser(email, hashedPassword);
+      // Create user in DB (NOW includes profileImage)
+      await createUser(email, hashedPassword, profileImage);
 
-      // Auto login after registration
+      // Auto-login after registration
       const newUser = await getUserByEmail(email);
       const userData = {
         id: newUser.id,
         email: newUser.email,
-        role: newUser.role
+        role: newUser.role,
+        profile_image: newUser.profile_image,
       };
 
       setUser(userData);
@@ -84,37 +74,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login user
+  // LOGIN — also returns profile_image now
   const login = async (email, password) => {
     try {
-      // Validate email
-      if (!validateEmail(email)) {
-        throw new Error('Please enter a valid email address');
-      }
+      if (!validateEmail(email)) throw new Error('Please enter a valid email address');
+      if (!password) throw new Error('Please enter your password');
 
-      if (!password) {
-        throw new Error('Please enter your password');
-      }
-
-      // Get user from database
       const dbUser = await getUserByEmail(email);
+      if (!dbUser) throw new Error('Invalid email or password');
 
-      if (!dbUser) {
-        throw new Error('Invalid email or password');
-      }
-
-      // Compare passwords
       const isPasswordValid = await comparePassword(password, dbUser.password);
+      if (!isPasswordValid) throw new Error('Invalid email or password');
 
-      if (!isPasswordValid) {
-        throw new Error('Invalid email or password');
-      }
-
-      // Set user data
       const userData = {
         id: dbUser.id,
         email: dbUser.email,
-        role: dbUser.role
+        role: dbUser.role,
+        profile_image: dbUser.profile_image,
       };
 
       setUser(userData);
@@ -127,7 +103,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout user
   const logout = async () => {
     try {
       setUser(null);
@@ -146,7 +121,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     register,
     login,
-    logout
+    logout,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
